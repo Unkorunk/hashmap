@@ -30,77 +30,15 @@ public:
     template <class U>
 	allocator(const allocator<U>&) noexcept {}
 	
-    ~allocator() {
-		for (auto block : blocks) {
-			delete[] block.second;
-		}
-	}
+    ~allocator() {}
 
     pointer allocate(size_type n) {
-		auto iter = free_blocks.lower_bound(std::pair<size_type, pointer >(n, nullptr));
-		if (iter == free_blocks.end()) {
-			blocks.emplace_back(n, new T[n]);
-			occupied_blocks.emplace(blocks.back().second, blocks.back().first);
-			return blocks.back().second;
-		} else {
-			auto node = *iter;
-			free_blocks.erase(iter);
-
-			occupied_blocks.emplace(node.second, n);
-
-			if (node.first > n) {
-				free_blocks.emplace(node.first - n, node.second + n);
-			}
-
-			return node.second;
-		}
+		return new value_type[n];
 	}
 	
     void deallocate(pointer p, size_type n) noexcept {
-		auto iter_block = occupied_blocks.find(std::pair<pointer, size_type>(p, n));
-
-		if (iter_block == occupied_blocks.end()) {
-			return;
-		}
-
-		auto block = *iter_block;
-		// TODO: Maybe need to delete only part
-		occupied_blocks.erase(iter_block);
-		mergeBlocks(block);
-	}
-
-private:
-	std::vector<std::pair<size_type, pointer>> blocks;
-	std::set<std::pair<size_type, pointer>> free_blocks;
-	std::set<std::pair<pointer, size_type>> occupied_blocks;
-
-	// TODO: O(n) - maybe faster?
-	void mergeBlocks(std::pair<pointer, size_type> block) {
-		auto iter_back = free_blocks.begin();
-		for (; iter_back != free_blocks.end(); iter_back++) {
-			if (iter_back->second + iter_back->first == block.first) {
-				break;
-			}
-		}
-		if (iter_back != free_blocks.end()) {
-			auto finded_block = *iter_back;
-			free_blocks.erase(iter_back);
-			block = std::make_pair(finded_block.second, finded_block.first + block.second);
-		}
-
-		auto iter_forward = free_blocks.begin();
-		for (; iter_forward != free_blocks.end(); iter_forward++) {
-			if (iter_forward->second == block.first + block.second) {
-				break;
-			}
-		}
-		if (iter_forward != free_blocks.end()) {
-			auto finded_block = *iter_forward;
-			free_blocks.erase(iter_forward);
-			free_blocks.emplace(finded_block.first + block.second, block.first);
-		} else {
-			free_blocks.emplace(block.second, block.first);
-		}
+		n = 0;
+		delete[] p;
 	}
 };
 

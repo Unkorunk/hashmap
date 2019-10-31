@@ -8,7 +8,7 @@ TEST_CASE("allocate memory", "[test]") {
 
 	const int arr_size = 5;
 
-	int* arr[arr_size + 3];
+	int* arr[arr_size];
 	int sizes[arr_size];
 
 	for (int i = 0; i < arr_size; i++) {
@@ -22,13 +22,13 @@ TEST_CASE("allocate memory", "[test]") {
 		}
 	}
 
-	tor.deallocate(arr[arr_size - 1], 1);
-	arr[arr_size] = tor.allocate(2);
-	tor.deallocate(arr[arr_size - 1], sizes[arr_size - 1]);
-	arr[arr_size + 1] = tor.allocate(2);
-	arr[arr_size + 2] = tor.allocate(3);
-	tor.deallocate(arr[arr_size + 1], 2);
-	tor.deallocate(arr[arr_size + 2], 3);
-	arr[arr_size + 2] = tor.allocate(3);
-	arr[arr_size + 1] = tor.allocate(2);
+	for (int i = 0; i < arr_size; i++) {
+		for (int j = 0; j < sizes[i]; j++) {
+			REQUIRE(arr[i][j] == (i + 1) * (j + 1));
+		}
+	}
+
+	for (int i = 0; i < arr_size; i++) {
+		tor.deallocate(arr[i], 0);
+	}
 }
