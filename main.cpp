@@ -1,34 +1,68 @@
-#define CATCH_CONFIG_MAIN
+#include <string>
+#include <iostream>
+#include <cassert>
 
-#include "catch.hpp"
 #include "hash_map.hpp"
 
-TEST_CASE("allocate memory", "[test]") {
-	fefu::allocator<int> tor;
+int main() {
+	{
+		fefu::hash_map<std::string, int> ages(10);
 
-	const int arr_size = 5;
+		std::string name = "Vlad";
+		ages[name] = 19;
+		name = "Kolya";
+		ages[name] = 18;
 
-	int* arr[arr_size];
-	int sizes[arr_size];
+		ages["Anya"] = 20;
 
-	for (int i = 0; i < arr_size; i++) {
-		sizes[i] = (i + 1) * (i + 1);
+		assert(ages[name] == 18);
+		name = "Vlad";
+		assert(ages[name] == 19);
+
+		assert(ages.at("Kolya") == 18);
+		try {
+			ages.at("Katya");
+			assert(false);
+		} catch (const std::out_of_range & ex) {
+		}
+
+		assert(ages["Anya"] == 20);
+
+		assert(ages.contains("Vlad"));
+		assert(ages.contains("Kolya"));
+		assert(!ages.contains("Kolyas"));
 	}
 
-	for (int i = 0; i < arr_size; i++) {
-		arr[i] = tor.allocate(sizes[i]);
-		for (int j = 0; j < sizes[i]; j++) {
-			arr[i][j] = (i + 1) * (j + 1);
+	{
+		std::initializer_list<std::pair<const int, int>> data = {
+			{ 73, 12345 },
+			{ 119, 4567653 },
+			{ 1, 2 },
+			{ 2, 1 },
+			{ 50, 1 },
+			{ 13466, 25 },
+			{ 43, 25 },
+			{ 29, 456 }
+		};
+
+		//for (int i = 0; i < INT_MAX; i++) {
+		//	if (i == 2) continue;
+
+		//	if (std::hash<int>()(2) % 30 == std::hash<int>()(i) % 30) {
+		//		std::cout << "Collision " << i << std::endl;
+		//	}
+		//}
+
+		const fefu::hash_map<int, int> some_data(data, 30);
+
+		for (auto& vls : data) {
+			assert(some_data.at(vls.first) == vls.second);
 		}
 	}
 
-	for (int i = 0; i < arr_size; i++) {
-		for (int j = 0; j < sizes[i]; j++) {
-			REQUIRE(arr[i][j] == (i + 1) * (j + 1));
-		}
-	}
+	std::cout << "So Good" << std::endl;
 
-	for (int i = 0; i < arr_size; i++) {
-		tor.deallocate(arr[i], 0);
-	}
+
+	return 0;
 }
+
