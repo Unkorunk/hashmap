@@ -351,47 +351,61 @@ namespace fefu {
 
 			// modifiers.
 			template <typename... _Args>
-			std::pair<iterator, bool> emplace(_Args&&... args);
+			std::pair<iterator, bool> emplace(_Args&&... args) {
+				return this->insert(value_type(args...));
+			}
 
 			template <typename... _Args>
-			std::pair<iterator, bool> try_emplace(const key_type& k, _Args&&... args);
+			std::pair<iterator, bool> try_emplace(const key_type& k, _Args&&... args) {
+				return this->insert(value_type(k, args...));
+			}
 
 			// move-capable overload
 			template <typename... _Args>
-			std::pair<iterator, bool> try_emplace(key_type&& k, _Args&&... args);
+			std::pair<iterator, bool> try_emplace(key_type&& k, _Args&&... args) {
+				return this->insert(value_type(std::move(k), args...));
+			}
 
 			std::pair<iterator, bool> insert(const value_type& x) {
-				size_type index = bucket(x.first);
+				try {
+					size_type index = bucket(x.first);
 
-				if (used_[index] == 0) {
-					new (data_ + index) value_type(x);
-					used_[index] = 1;
-					length_++;
+					if (used_[index] == 0) {
+						new (data_ + index) value_type(x);
+						used_[index] = 1;
+						length_++;
+					}
+
+					iterator some_iter;
+					some_iter.dptr_ = data_ + index;
+					some_iter.uptr_ = used_ + index;
+					some_iter.eptr_ = used_ + capacity_;
+
+					return { some_iter, true };
+				} catch (...) {
+					return { this->end(), false };
 				}
-
-				iterator some_iter;
-				some_iter.dptr_ = data_ + index;
-				some_iter.uptr_ = used_ + index;
-				some_iter.eptr_ = used_ + capacity_;
-
-				return { some_iter, true };
 			}
 
 			std::pair<iterator, bool> insert(value_type&& x) { // TODO: second arg
-				size_type index = bucket(x.first);
+				try {
+					size_type index = bucket(x.first);
 
-				if (used_[index] == 0) {
-					new (data_ + index) value_type(std::move(x));
-					used_[index] = 1;
-					length_++;
+					if (used_[index] == 0) {
+						new (data_ + index) value_type(std::move(x));
+						used_[index] = 1;
+						length_++;
+					}
+
+					iterator some_iter;
+					some_iter.dptr_ = data_ + index;
+					some_iter.uptr_ = used_ + index;
+					some_iter.eptr_ = used_ + capacity_;
+
+					return { some_iter, true };
+				} catch (...) {
+					return { this->end(), false };
 				}
-
-				iterator some_iter;
-				some_iter.dptr_ = data_ + index;
-				some_iter.uptr_ = used_ + index;
-				some_iter.eptr_ = used_ + capacity_;
-
-				return { some_iter, true };
 			}
 
 			template <typename _InputIterator>
@@ -446,18 +460,37 @@ namespace fefu {
 			Pred key_eq() const { return pred_; }
 
 			// lookup.
-			iterator find(const key_type& x);
-			const_iterator find(const key_type& x) const;
+			iterator find(const key_type& x) {
+				size_type index = bucket(x);
+				if (!used_[index]) {
+					index = capacity_;
+				}
 
-			size_type count(const key_type& x) const;
+				iterator some_iter;
+				some_iter.dptr_ = data_ + index;
+				some_iter.uptr_ = used_ + index;
+				some_iter.eptr_ = used_ + capacity_;
+				return some_iter;
+			}
+			const_iterator find(const key_type& x) const {
+				size_type index = bucket(x);
+				if (!used_[index]) {
+					index = capacity_;
+				}
+
+				const_iterator some_iter;
+				some_iter.dptr_ = data_ + index;
+				some_iter.uptr_ = used_ + index;
+				some_iter.eptr_ = used_ + capacity_;
+				return some_iter;
+			}
+
+			size_type count(const key_type& x) const {
+				return (this->find(x) != this->end() ? 1 : 0);
+			}
 
 			bool contains(const key_type& x) const {
-				for (int i = 0; i < capacity_; i++) {
-					if (used_[i] == 1 && pred_(data_[i].first, x)) {
-						return true;
-					}
-				}
-				return false;
+				return (this->count(x) == 1);
 			}
 
 			mapped_type& operator[](const key_type& k) {
@@ -503,8 +536,13 @@ namespace fefu {
 			size_type bucket_count() const noexcept { return capacity_; }
 			size_type bucket(const key_type& _K) const {
 				size_t index = hasher_(_K) % capacity_;
+				size_t start_index = index;
 				while (used_[index] == 1 && !pred_(data_[index].first, _K)) {
 					index = (index + 1) % capacity_;
+
+					if (index == start_index) {
+						return capacity_;
+					}
 				}
 				return index;
 			}
