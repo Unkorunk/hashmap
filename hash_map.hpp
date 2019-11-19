@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <functional>
 #include <memory>
 #include <utility>
@@ -60,12 +61,14 @@ namespace fefu {
 
 		// prefix ++
 		hash_map_iterator& operator++() {
-			uptr_++;
-			dptr_++;
-
-			while (*uptr_ == 0 && uptr_ != eptr_) {
-				dptr_++;
+			if (uptr_ != eptr_) {
 				uptr_++;
+				dptr_++;
+
+				while (*uptr_ == 0 && uptr_ != eptr_) {
+					dptr_++;
+					uptr_++;
+				}
 			}
 
 			return *this;
@@ -118,7 +121,7 @@ namespace fefu {
 			uptr_++;
 			dptr_++;
 
-			while (*uptr_ == 0 && uptr_ != eptr_) {
+			while (*uptr_ != 1 && uptr_ != eptr_) {
 				dptr_++;
 				uptr_++;
 			}
@@ -164,40 +167,37 @@ namespace fefu {
 			using const_iterator = hash_map_const_iterator<value_type>;
 			using size_type = std::size_t;
 
-			hash_map()
-				: max_load_factor_(0.9f),
-				capacity_(0),
-				length_(0),
-				data_(nullptr),
-				used_(nullptr),
-				allocator_() {
-			}
+			hash_map() : hash_map(1) {}
 
 			~hash_map() {
 				if (data_ != nullptr) {
+					for (size_type i = 0; i < capacity_; i++) {
+						if (used_[i] == 1) {
+							data_[i].second.~mapped_type();
+						}
+					}
 					allocator_.deallocate(data_, capacity_);
 					delete[] used_;
 				}
 			}
 
 			explicit hash_map(size_type n)
-				: max_load_factor_(0.9f),
-				capacity_(n),
-				length_(0),
-				allocator_(),
-				used_(new char[n]()) {
-				data_ = allocator_.allocate(n);
-				std::fill_n(used_, capacity_, 0);
+				: max_load_factor_(0.45f), length_(0), allocator_() {
+				
+				capacity_ = std::min(static_cast<size_type>(1), n);
+				used_ = new char[capacity_];
+				data_ = allocator_.allocate(capacity_);
+				std::fill_n(used_, capacity_, static_cast<char>(0));
 			}
 
 			template <typename InputIterator>
-			hash_map(InputIterator first, InputIterator last, size_type n = 0)
+			hash_map(InputIterator first, InputIterator last, size_type n = 1)
 				: hash_map(std::distance(first, last) > n ? std::distance(first, last) : n) {
 				this->insert(first, last);
 			}
 
 			hash_map(const hash_map& other)
-				: max_load_factor_(0.9f),
+				: max_load_factor_(0.45f),
 				length_(other.length_),
 				capacity_(other.capacity_),
 				allocator_(),
@@ -208,7 +208,7 @@ namespace fefu {
 			}
 
 			hash_map(hash_map&& other)
-				: max_load_factor_(0.9f),
+				: max_load_factor_(0.45f),
 				capacity_(0),
 				length_(0),
 				allocator_(),
@@ -218,7 +218,7 @@ namespace fefu {
 			}
 
 			explicit hash_map(const allocator_type& a)
-				: max_load_factor_(0.9f),
+				: max_load_factor_(0.45f),
 				capacity_(0),
 				length_(0),
 				data_(nullptr),
@@ -227,7 +227,7 @@ namespace fefu {
 			}
 
 			hash_map(const hash_map& other, const allocator_type& a)
-				: max_load_factor_(0.9f),
+				: max_load_factor_(0.45f),
 				length_(other.length_),
 				capacity_(other.capacity_),
 				allocator_(a),
@@ -238,7 +238,7 @@ namespace fefu {
 			}
 
 			hash_map(hash_map&& other, const allocator_type& a)
-				: max_load_factor_(0.9f),
+				: max_load_factor_(0.45f),
 				capacity_(0),
 				length_(0),
 				allocator_(),
@@ -248,16 +248,21 @@ namespace fefu {
 				allocator_ = a;
 			}
 
-			hash_map(std::initializer_list<value_type> l, size_type n = 0)
-				: hash_map((l.size() > n ? l.size() : n)) {
-				for (auto& vls : l) {
-					this->operator[](vls.first) = vls.second;
-				}
+			hash_map(std::initializer_list<value_type> l, size_type n = 1) 
+				: max_load_factor_(0.45f), length_(0), allocator_() {
+
+				capacity_ = std::max(l.size(), std::max(static_cast<size_type>(1), n));
+				used_ = new char[capacity_];
+				data_ = allocator_.allocate(capacity_);
+				std::fill_n(used_, capacity_, static_cast<char>(0));
+
+				this->insert(l.begin(), l.end());
 			}
+
 
 			/// Copy assignment operator.
 			hash_map& operator=(const hash_map& other) {
-				max_load_factor_ = 0.9f;
+				max_load_factor_ = 0.45f;
 				length_ = other.length_;
 				capacity_ = other.capacity_;
 				data_ = allocator_.allocate(other.capacity_);
@@ -269,7 +274,7 @@ namespace fefu {
 
 			/// Move assignment operator.
 			hash_map& operator=(hash_map&& other) {
-				max_load_factor_ = 0.9f;
+				max_load_factor_ = 0.45f;
 				capacity_ = 0;
 				length_ = 0;
 				data_ = nullptr;
@@ -279,12 +284,12 @@ namespace fefu {
 			}
 
 			hash_map& operator=(std::initializer_list<value_type> l) {
-				max_load_factor_ = 0.9f;
+				max_load_factor_ = 0.45f;
 				capacity_ = l.size();
 				length_ = 0;
 				data_ = allocator_.allocate(l.size());
 				used_ = new char[l.size()]();
-				std::fill_n(used_, capacity_, 0);
+				std::fill_n(used_, capacity_, static_cast<char>(0));
 				for (auto& vls : l) {
 					this->operator[](vls.first) = vls.second;
 				}
@@ -352,22 +357,26 @@ namespace fefu {
 			// modifiers.
 			template <typename... _Args>
 			std::pair<iterator, bool> emplace(_Args&&... args) {
-				return this->insert(value_type(args...));
+				return this->insert(value_type(std::forward<_Args>(args)...));
 			}
 
 			template <typename... _Args>
 			std::pair<iterator, bool> try_emplace(const key_type& k, _Args&&... args) {
-				return this->insert(value_type(k, mapped_type(args...)));
+				return this->insert(value_type(k, mapped_type(std::forward<_Args>(args)...))); // TODO: on place
 			}
 
 			template <typename... _Args>
 			std::pair<iterator, bool> try_emplace(key_type&& k, _Args&&... args) {
-				return this->insert(value_type(std::move(k), mapped_type(args...)));
+				return this->insert(value_type(std::move(k), mapped_type(std::forward<_Args>(args)...))); // TODO: on place
 			}
 
 			std::pair<iterator, bool> insert(const value_type& x) {
 				try {
 					size_type index = bucket(x.first);
+					if (index == capacity_) {
+						this->rehash(2 * this->bucket_count());
+						index = bucket(x.first);
+					}
 
 					if (used_[index] == 0) {
 						new (data_ + index) value_type(x);
@@ -389,9 +398,13 @@ namespace fefu {
 			std::pair<iterator, bool> insert(value_type&& x) {
 				try {
 					size_type index = bucket(x.first);
+					if (index == capacity_) {
+						this->rehash(2 * this->bucket_count());
+						index = bucket(x.first);
+					}
 
 					if (used_[index] == 0) {
-						new (data_ + index) value_type(std::move(x));
+						new (data_ + index) value_type(std::move(x)); // todo: maybe forward
 						used_[index] = 1;
 						length_++;
 					}
@@ -419,33 +432,95 @@ namespace fefu {
 			}
 
 			template <typename _Obj>
-			std::pair<iterator, bool> insert_or_assign(const key_type& k, _Obj&& obj);
+			std::pair<iterator, bool> insert_or_assign(const key_type& k, _Obj&& obj) {
+				auto iter = this->find(k);
+				if (iter == this->end()) {
+					this->insert(value_type(k, obj));
+				} else {
+					iter->second = obj;
+				}
+			}
 
 			template <typename _Obj>
-			std::pair<iterator, bool> insert_or_assign(key_type&& k, _Obj&& obj);
+			std::pair<iterator, bool> insert_or_assign(key_type&& k, _Obj&& obj) {
+				auto iter = this->find(k);
+				if (iter == this->end()) {
+					this->insert(value_type(std::move(k), obj));
+				} else {
+					iter->second = obj;
+				}
+			}
 
-			iterator erase(const_iterator position);
+			iterator erase(const_iterator position) {
+				*position.uptr_ = 2;
+				position.dptr_->second.~mapped_type();
+				position++;
+				length_--;
+				return position;
+			}
 
-			iterator erase(iterator position);
+			iterator erase(iterator position) {
+				*position.uptr_ = 2;
+				position.dptr_->second.~mapped_type();
+				position++;
+				length_--;
+				return position;
+			}
 
-			size_type erase(const key_type& x);
+			size_type erase(const key_type& x) {
+				auto iter = this->find(x);
+				if (iter != this->end()) {
+					this->erase(iter);
+					return 1;
+				}
+				return 0;
+			}
 
-			iterator erase(const_iterator first, const_iterator last);
+			iterator erase(const_iterator first, const_iterator last) {
+				for (auto iter = first; iter != last; ) {
+					this->erase(iter);
+				}
+			}
 
-			void clear() noexcept;
+			void clear() noexcept {
+				for (size_type i = 0; i < capacity_; i++) {
+					if (used_[i] == 1) {
+						data_[i].second.~mapped_type();
+					}
+					used_[i] = 0;
+				}
+			}
 
 			void swap(hash_map& x) {
 				swap(x.data_, data_);
 				swap(x.used_, used_);
 				swap(x.length_, length_);
 				swap(x.capacity_, capacity_);
+				swap(x.allocator_, allocator_);
+				swap(x.hasher_, hasher_);
+				swap(x.max_load_factor_, max_load_factor_);
+				swap(x.pred_, pred_);
 			}
 
 			template <typename _H2, typename _P2>
-			void merge(hash_map<K, T, _H2, _P2, Alloc>& source);
+			void merge(hash_map<K, T, _H2, _P2, Alloc>& source) {
+				for (auto iter = source.begin(); iter != source.end(); iter++) {
+					if (!this->contains(iter->first)) {
+						this->insert(*iter);
+						iter = source.erase(iter);
+					}
+				}
+			}
 
 			template <typename _H2, typename _P2>
-			void merge(hash_map<K, T, _H2, _P2, Alloc>&& source);
+			void merge(hash_map<K, T, _H2, _P2, Alloc>&& source) {
+				for (auto iter = source.begin(); iter != source.end(); iter++) {
+					if (!this->contains(iter->first)) {
+						this->insert(std::move(*iter));
+						iter = source.erase(iter);
+					}
+				}
+			}
 
 			// observers.
 
@@ -459,7 +534,7 @@ namespace fefu {
 
 			// lookup.
 			iterator find(const key_type& x) {
-				size_type index = bucket(x);
+				size_type index = custom_bucket(x, data_, used_, capacity_, false);
 				if (!used_[index]) {
 					index = capacity_;
 				}
@@ -472,7 +547,7 @@ namespace fefu {
 			}
 			const_iterator find(const key_type& x) const {
 				size_type index = bucket(x);
-				if (!used_[index]) {
+				if (used_[index] != 1) {
 					index = capacity_;
 				}
 
@@ -493,6 +568,10 @@ namespace fefu {
 
 			mapped_type& operator[](const key_type& k) {
 				size_type index = bucket(k);
+				if (index == capacity_) {
+					this->rehash(2 * this->bucket_count());
+					index = bucket(k);
+				}
 
 				if (used_[index] == 0) {
 					new (data_ + index) value_type{ k, mapped_type() };
@@ -504,6 +583,10 @@ namespace fefu {
 			}
 			mapped_type& operator[](key_type&& k) {
 				size_type index = bucket(k);
+				if (index == capacity_) {
+					this->rehash(2 * this->bucket_count());
+					index = bucket(k);
+				}
 
 				if (used_[index] == 0) {
 					new (data_ + index) value_type{ std::move(k), mapped_type() };
@@ -533,28 +616,91 @@ namespace fefu {
 
 			size_type bucket_count() const noexcept { return capacity_; }
 			size_type bucket(const key_type& _K) const {
-				size_t index = hasher_(_K) % capacity_;
-				size_t start_index = index;
-				while (used_[index] == 1 && !pred_(data_[index].first, _K)) {
-					index = (index + 1) % capacity_;
-
-					if (index == start_index) {
-						return capacity_;
-					}
-				}
-				return index;
+				return custom_bucket(_K, data_, used_, capacity_);
 			}
 
 			// hash policy.
 			float load_factor() const noexcept { return size() * 1.0f / bucket_count(); }
 			float max_load_factor() const noexcept { return max_load_factor_; }
 			void max_load_factor(float z) { max_load_factor_ = z; }
-			void rehash(size_type n);
-			void reserve(size_type n);
+			void rehash(size_type n) {
+				n = capacity_ + n;
 
-			bool operator==(const hash_map& other) const;
+				char* n_used = new char[n];
+
+				std::fill_n(n_used, n, static_cast<char>(0));
+
+				value_type* n_data = allocator_.allocate(n);
+
+				for (size_type i = 0; i < capacity_; i++) {
+					if (used_[i] == 1) {
+						size_type index = custom_bucket(data_[i].first, n_data, n_used, n);
+						new (n_data + index) value_type(std::move(data_[i]));
+						n_used[index] = 1;
+					}
+				}
+
+				delete[] used_;
+				allocator_.deallocate(data_, capacity_);
+
+				used_ = n_used;
+				data_ = n_data;
+
+				capacity_ = n;
+			}
+			void reserve(size_type n) {
+				this->rehash(ceil(n / max_load_factor()));
+			}
+
+			bool operator==(const hash_map& other) const {
+				if (other.capacity_ != this->capacity_ || other.length_ != this->length_ ||
+					std::abs(max_load_factor_ - other.max_load_factor) > 1e-7) {
+					return false;
+				}
+
+				for (size_type i = 0; i < capacity_; i++) {
+					if (this->used_[i] != other.used_[i]) {
+						return false;
+					} else if (used_[i] == 1 && data_[i] != other.data_[i]) {
+						return false;
+					}
+				}
+
+				return true;
+			}
 
 		private:
+			size_type custom_bucket(const key_type& _K, value_type* data, char* used, size_type capacity) const {
+				if (capacity == 0) return 0;
+
+				size_t first_twos = 0;
+				bool finded_twos = false;
+
+				size_t start_index = hasher_(_K) % capacity;
+				size_t index = start_index;
+				while (used[index] == 2 || used[index] == 1 && !pred_(data[index].first, _K)) {
+					if (!finded_twos && used[index] == 2) {
+						first_twos = index;
+						finded_twos = true;
+					}
+
+					index = (index + 1) % capacity;
+					if (index == start_index) {
+						return capacity_;
+					}
+				}
+	
+				if (used[index] == 1) {
+					return index;
+				} else {
+					if (finded_twos) {
+						return first_twos;
+					} else {
+						return index;
+					}
+				}
+			}
+
 			hasher hasher_;
 			allocator_type allocator_;
 			key_equal pred_;
