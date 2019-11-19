@@ -5,12 +5,28 @@
 #include "hash_map.hpp"
 
 int main() {
+	{
+		struct TestStruct {
+			int x, y;
+			TestStruct() : x(0), y(0) {}
+			TestStruct(int x, int y) : x(x), y(y) {}
+		};
+
+		fefu::hash_map<std::string, TestStruct> some_hash_map_1(56);
+		some_hash_map_1.try_emplace(std::string("abc"), 56, 28);
+
+		std::cout << some_hash_map_1["abc"].x << std::endl;
+			std::cout << some_hash_map_1["abc"].y << std::endl;
+	}
+
   {
     fefu::hash_map<std::string, int> ages(10);
 	ages.emplace("Some name", 1);
 	ages.try_emplace(std::string("Some name1"), 2);
 	std::string some_name3 = "Some name 2";
 	ages.try_emplace(some_name3, 3);
+	some_name3 += "1";
+	ages.try_emplace(some_name3, 1234.011f);
 
     std::string name = "Vlad";
     ages[name] = 19;
@@ -40,6 +56,7 @@ int main() {
 	assert(ages.contains("Some name") && ages["Some name"] == 1);
 	assert(ages.contains("Some name1") && ages["Some name1"] == 2);
 	assert(ages.contains("Some name 2") && ages["Some name 2"] == 3);
+	assert(ages.contains("Some name 21") && ages["Some name 21"] == 1234);
 
 	int counter = 0;
     for (auto iter = ages.begin(); iter != ages.end(); iter++) {

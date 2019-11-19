@@ -357,13 +357,12 @@ namespace fefu {
 
 			template <typename... _Args>
 			std::pair<iterator, bool> try_emplace(const key_type& k, _Args&&... args) {
-				return this->insert(value_type(k, args...));
+				return this->insert(value_type(k, mapped_type(args...)));
 			}
 
-			// move-capable overload
 			template <typename... _Args>
 			std::pair<iterator, bool> try_emplace(key_type&& k, _Args&&... args) {
-				return this->insert(value_type(std::move(k), args...));
+				return this->insert(value_type(std::move(k), mapped_type(args...)));
 			}
 
 			std::pair<iterator, bool> insert(const value_type& x) {
@@ -387,7 +386,7 @@ namespace fefu {
 				}
 			}
 
-			std::pair<iterator, bool> insert(value_type&& x) { // TODO: second arg
+			std::pair<iterator, bool> insert(value_type&& x) {
 				try {
 					size_type index = bucket(x.first);
 
@@ -422,7 +421,6 @@ namespace fefu {
 			template <typename _Obj>
 			std::pair<iterator, bool> insert_or_assign(const key_type& k, _Obj&& obj);
 
-			// move-capable overload
 			template <typename _Obj>
 			std::pair<iterator, bool> insert_or_assign(key_type&& k, _Obj&& obj);
 
