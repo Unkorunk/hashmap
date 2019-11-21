@@ -50,6 +50,8 @@ namespace fefu {
 	public:
 		using pointer = ValueType*;
 
+		Node(pointer dptr, char* uptr, char* eptr) : dptr_(dptr), uptr_(uptr), eptr_(eptr) {}
+
 		pointer dptr_;
 		char* uptr_;
 		char* eptr_;
@@ -70,34 +72,34 @@ namespace fefu {
 		using pointer = ValueType*;
 
 		hash_map_iterator() noexcept
-			: dptr_(nullptr), uptr_(nullptr), eptr_(nullptr) {
+			: node(nullptr, nullptr, nullptr) {
 		}
 		hash_map_iterator(const hash_map_iterator& other) noexcept
-			: dptr_(other.dptr_), uptr_(other.uptr_), eptr_(other.eptr_) {
+			: node(other.node.dptr_, other.node.uptr_, other.node.eptr_) {
 		}
 
 		reference operator*() const { 
-			if (dptr_ == nullptr || eptr_ == nullptr || uptr_ == nullptr) {
+			if (node.dptr_ == nullptr || node.eptr_ == nullptr || node.uptr_ == nullptr) {
 				throw std::runtime_error("Uninit iterator");
 			}
-			return *dptr_;
+			return *node.dptr_;
 		}
 		pointer operator->() const {
-			if (dptr_ == nullptr || eptr_ == nullptr || uptr_ == nullptr) {
+			if (node.dptr_ == nullptr || node.eptr_ == nullptr || node.uptr_ == nullptr) {
 				throw std::runtime_error("Uninit iterator");
 			}
-			return dptr_;
+			return node.dptr_;
 		}
 
 		// prefix ++
 		hash_map_iterator& operator++() {
-			if (uptr_ != eptr_) {
-				uptr_++;
-				dptr_++;
+			if (node.uptr_ != node.eptr_) {
+				node.uptr_++;
+				node.dptr_++;
 
-				while (uptr_ != eptr_ && *uptr_ != 1) {
-					dptr_++;
-					uptr_++;
+				while (node.uptr_ != node.eptr_ && *node.uptr_ != 1) {
+					node.dptr_++;
+					node.uptr_++;
 				}
 			} else {
 				throw std::runtime_error("Out of bounds");
@@ -122,9 +124,7 @@ namespace fefu {
 		}
 
 	private:
-		pointer dptr_;
-		char* uptr_;
-		char* eptr_;
+		Node<ValueType> node;
 	};
 
 	template <typename ValueType>
@@ -139,34 +139,37 @@ namespace fefu {
 		using pointer = const ValueType*;
 
 		hash_map_const_iterator() noexcept
-			: dptr_(nullptr), uptr_(nullptr), eptr_(nullptr) {}
-		hash_map_const_iterator(const hash_map_const_iterator& other) noexcept 
-			: dptr_(other.dptr_), uptr_(other.uptr_), eptr_(other.eptr_) {}
+			: node(nullptr, nullptr, nullptr) {
+		}
+		hash_map_const_iterator(const hash_map_const_iterator& other) noexcept
+			: node(other.node.dptr_, other.node.uptr_, other.node.eptr_) {
+		}
 		hash_map_const_iterator(const hash_map_iterator<ValueType>& other) noexcept
-			: dptr_(other.dptr_), uptr_(other.uptr_), eptr_(other.eptr_) {}
+			: node(other.node.dptr_, other.node.uptr_, other.node.eptr_) {
+		}
 
 		reference operator*() const {
-			if (dptr_ == nullptr || eptr_ == nullptr || uptr_ == nullptr) {
+			if (node.dptr_ == nullptr || node.eptr_ == nullptr || node.uptr_ == nullptr) {
 				throw std::runtime_error("Uninit iterator");
 			}
-			return *dptr_;
+			return *node.dptr_;
 		}
 		pointer operator->() const {
-			if (dptr_ == nullptr || eptr_ == nullptr || uptr_ == nullptr) {
+			if (node.dptr_ == nullptr || node.eptr_ == nullptr || node.uptr_ == nullptr) {
 				throw std::runtime_error("Uninit iterator");
 			}
-			return dptr_;
+			return node.dptr_;
 		}
 
 		// prefix ++
 		hash_map_const_iterator& operator++() {
-			if (uptr_ != eptr_) {
-				uptr_++;
-				dptr_++;
+			if (node.uptr_ != node.eptr_) {
+				node.uptr_++;
+				node.dptr_++;
 
-				while (uptr_ != eptr_ && *uptr_ != 1) {
-					dptr_++;
-					uptr_++;
+				while (node.uptr_ != node.eptr_ && *node.uptr_ != 1) {
+					node.dptr_++;
+					node.uptr_++;
 				}
 			} else {
 				throw std::runtime_error("Out of bounds");
@@ -191,9 +194,7 @@ namespace fefu {
 		}
 
 	private:
-		pointer dptr_;
-		char* uptr_;
-		char* eptr_;
+		Node<ValueType> node;
 	};
 
 	template <typename K, typename T, typename Hash = std::hash<K>,
@@ -417,9 +418,9 @@ namespace fefu {
 				iterator rtn_iter = this->end();
 				for (size_type i = 0; i < capacity_; i++) {
 					if (used_[i] != 0) {
-						rtn_iter.uptr_ = used_ + i;
-						rtn_iter.dptr_ = data_ + i;
-						rtn_iter.eptr_ = used_ + capacity_;
+						rtn_iter.node.uptr_ = used_ + i;
+						rtn_iter.node.dptr_ = data_ + i;
+						rtn_iter.node.eptr_ = used_ + capacity_;
 						break;
 					}
 				}
@@ -431,9 +432,9 @@ namespace fefu {
 				const_iterator rtn_iter = this->end();
 				for (size_type i = 0; i < capacity_; i++) {
 					if (used_[i] != 0) {
-						rtn_iter.uptr_ = used_ + i;
-						rtn_iter.dptr_ = data_ + i;
-						rtn_iter.eptr_ = used_ + capacity_;
+						rtn_iter.node.uptr_ = used_ + i;
+						rtn_iter.node.dptr_ = data_ + i;
+						rtn_iter.node.eptr_ = used_ + capacity_;
 						break;
 					}
 				}
@@ -443,9 +444,9 @@ namespace fefu {
 			iterator end() noexcept {
 				iterator rtn_iter;
 
-				rtn_iter.uptr_ = used_ + capacity_;
-				rtn_iter.dptr_ = data_ + capacity_;
-				rtn_iter.eptr_ = used_ + capacity_;
+				rtn_iter.node.uptr_ = used_ + capacity_;
+				rtn_iter.node.dptr_ = data_ + capacity_;
+				rtn_iter.node.eptr_ = used_ + capacity_;
 
 				return rtn_iter;
 			}
@@ -454,9 +455,9 @@ namespace fefu {
 			const_iterator cend() const noexcept {
 				const_iterator rtn_iter;
 
-				rtn_iter.uptr_ = used_ + capacity_;
-				rtn_iter.dptr_ = data_ + capacity_;
-				rtn_iter.eptr_ = used_ + capacity_;
+				rtn_iter.node.uptr_ = used_ + capacity_;
+				rtn_iter.node.dptr_ = data_ + capacity_;
+				rtn_iter.node.eptr_ = used_ + capacity_;
 
 				return rtn_iter;
 			}
@@ -493,9 +494,9 @@ namespace fefu {
 				}
 
 				iterator some_iter;
-				some_iter.dptr_ = data_ + index;
-				some_iter.uptr_ = used_ + index;
-				some_iter.eptr_ = used_ + capacity_;
+				some_iter.node.dptr_ = data_ + index;
+				some_iter.node.uptr_ = used_ + index;
+				some_iter.node.eptr_ = used_ + capacity_;
 
 				return { some_iter, true };
 			}
@@ -516,9 +517,9 @@ namespace fefu {
 				}
 
 				iterator some_iter;
-				some_iter.dptr_ = data_ + index;
-				some_iter.uptr_ = used_ + index;
-				some_iter.eptr_ = used_ + capacity_;
+				some_iter.node.dptr_ = data_ + index;
+				some_iter.node.uptr_ = used_ + index;
+				some_iter.node.eptr_ = used_ + capacity_;
 
 				return { some_iter, true };
 			}
@@ -563,19 +564,19 @@ namespace fefu {
 			}
 
 			iterator erase(const_iterator position) {
-				if (position == this->end() || *position.uptr_ != 1) {
+				if (position == this->end() || *position.node.uptr_ != 1) {
 					throw std::runtime_error("Invalid iterator for erase data");
 				}
 
-				*position.uptr_ = 2;
-				position.dptr_->second.~mapped_type();
+				*position.node.uptr_ = 2;
+				position.node.dptr_->second.~mapped_type();
 				length_--;
 
 				iterator other_position;
 
-				other_position.dptr_ = const_cast<value_type *>(position.dptr_);
-				other_position.eptr_ = position.eptr_;
-				other_position.uptr_ = position.uptr_;
+				other_position.node.dptr_ = const_cast<value_type *>(position.node.dptr_);
+				other_position.node.eptr_ = position.node.eptr_;
+				other_position.node.uptr_ = position.node.uptr_;
 
 				other_position++;
 
@@ -583,12 +584,12 @@ namespace fefu {
 			}
 
 			iterator erase(iterator position) {
-				if (position == this->end() || *position.uptr_ != 1) {
+				if (position == this->end() || *position.node.uptr_ != 1) {
 					throw std::runtime_error("Invalid iterator for erase data");
 				}
 
-				*position.uptr_ = 2;
-				position.dptr_->second.~mapped_type();
+				*position.node.uptr_ = 2;
+				position.node.dptr_->second.~mapped_type();
 				position++;
 				length_--;
 				return position;
@@ -605,9 +606,9 @@ namespace fefu {
 
 			iterator erase(const_iterator first, const_iterator last) {
 				iterator last_iter;
-				last_iter.dptr_ = const_cast<value_type*>(last.dptr_);
-				last_iter.eptr_ = last.eptr_;
-				last_iter.uptr_ = last.uptr_;
+				last_iter.node.dptr_ = const_cast<value_type*>(last.node.dptr_);
+				last_iter.node.eptr_ = last.node.eptr_;
+				last_iter.node.uptr_ = last.node.uptr_;
 
 				if (first != last) {
 					auto iter = this->erase(first);
@@ -687,9 +688,9 @@ namespace fefu {
 				}
 
 				iterator some_iter;
-				some_iter.dptr_ = data_ + index;
-				some_iter.uptr_ = used_ + index;
-				some_iter.eptr_ = used_ + capacity_;
+				some_iter.node.dptr_ = data_ + index;
+				some_iter.node.uptr_ = used_ + index;
+				some_iter.node.eptr_ = used_ + capacity_;
 				return some_iter;
 			}
 			const_iterator find(const key_type& x) const {
@@ -699,9 +700,9 @@ namespace fefu {
 				}
 
 				const_iterator some_iter;
-				some_iter.dptr_ = data_ + index;
-				some_iter.uptr_ = used_ + index;
-				some_iter.eptr_ = used_ + capacity_;
+				some_iter.node.dptr_ = data_ + index;
+				some_iter.node.uptr_ = used_ + index;
+				some_iter.node.eptr_ = used_ + capacity_;
 				return some_iter;
 			}
 
