@@ -470,17 +470,55 @@ namespace fefu {
 
 			template <typename... _Args>
 			std::pair<iterator, bool> try_emplace(const key_type& k, _Args&&... args) {
-				return this->insert(value_type(k, mapped_type(std::forward<_Args>(args)...))); // TODO: on place
+				size_type index = custom_bucket(k, data_, used_, capacity_);
+				if (index == capacity_ || load_factor() > max_load_factor()) {
+					this->rehash(2 * this->bucket_count());
+					index = custom_bucket(k, data_, used_, capacity_);
+				}
+
+				if (used_[index] != 1) {
+					new (data_ + index) value_type(k, mapped_type(std::forward<_Args>(args)...)); // todo: maybe forward
+					used_[index] = 1;
+					length_++;
+				} else {
+					return { this->end(), false };
+				}
+
+				iterator some_iter;
+				some_iter.node.dptr_ = data_ + index;
+				some_iter.node.uptr_ = used_ + index;
+				some_iter.node.eptr_ = used_ + capacity_;
+
+				return { some_iter, true };
 			}
 
 			template <typename... _Args>
 			std::pair<iterator, bool> try_emplace(key_type&& k, _Args&&... args) {
-				return this->insert(value_type(std::move(k), mapped_type(std::forward<_Args>(args)...))); // TODO: on place
+				size_type index = custom_bucket(k, data_, used_, capacity_);
+				if (index == capacity_ || load_factor() > max_load_factor()) {
+					this->rehash(2 * this->bucket_count());
+					index = custom_bucket(k, data_, used_, capacity_);
+				}
+
+				if (used_[index] != 1) {
+					new (data_ + index) value_type(std::move(k), mapped_type(std::forward<_Args>(args)...)); // todo: maybe forward
+					used_[index] = 1;
+					length_++;
+				} else {
+					return { this->end(), false };
+				}
+
+				iterator some_iter;
+				some_iter.node.dptr_ = data_ + index;
+				some_iter.node.uptr_ = used_ + index;
+				some_iter.node.eptr_ = used_ + capacity_;
+
+				return { some_iter, true };
 			}
 
 			std::pair<iterator, bool> insert(const value_type& x) {
 				size_type index = custom_bucket(x.first, data_, used_, capacity_);
-				if (index == capacity_) {
+				if (index == capacity_ || load_factor() > max_load_factor_) {
 					this->rehash(2 * this->bucket_count());
 					index = custom_bucket(x.first, data_, used_, capacity_);
 				}
@@ -503,7 +541,7 @@ namespace fefu {
 
 			std::pair<iterator, bool> insert(value_type&& x) {
 				size_type index = custom_bucket(x.first, data_, used_, capacity_);
-				if (index == capacity_) {
+				if (index == capacity_ || load_factor() > max_load_factor()) {
 					this->rehash(2 * this->bucket_count());
 					index = custom_bucket(x.first, data_, used_, capacity_);
 				}
@@ -716,7 +754,7 @@ namespace fefu {
 
 			mapped_type& operator[](const key_type& k) {
 				size_type index = custom_bucket(k, data_, used_, capacity_);
-				if (index == capacity_) {
+				if (index == capacity_ || load_factor() > max_load_factor()) {
 					this->rehash(2 * this->bucket_count());
 					index = custom_bucket(k, data_, used_, capacity_);
 				}
@@ -731,7 +769,7 @@ namespace fefu {
 			}
 			mapped_type& operator[](key_type&& k) {
 				size_type index = custom_bucket(k, data_, used_, capacity_);
-				if (index == capacity_) {
+				if (index == capacity_ || load_factor() > max_load_factor()) {
 					this->rehash(2 * this->bucket_count());
 					index = custom_bucket(k, data_, used_, capacity_);
 				}

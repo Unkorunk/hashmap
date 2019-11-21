@@ -68,9 +68,8 @@ TEST_CASE("move constructor", "[constructors]") {
 	REQUIRE(abs(hm1.load_factor()) < EPS);
 
 	REQUIRE(hm2.size() == 2);
-	REQUIRE(hm2.bucket_count() == 2);
+	REQUIRE(hm2.bucket_count() == 4);
 	REQUIRE(abs(hm2.max_load_factor() - 0.45f) < EPS);
-	REQUIRE(abs(hm2.load_factor() - 1.0f) < EPS);
 
 	for (auto iter = il.begin(); iter != il.end(); iter++) {
 		auto iter2 = hm2.find(iter->first);
@@ -183,8 +182,8 @@ TEST_CASE("constructor(init list)", "[constructors]") {
 	hash_map<int, std::string> hm1(il, 1);
 
 	REQUIRE(hm1.size() == 4);
-	REQUIRE(hm1.bucket_count() == 4);
-	REQUIRE(abs(hm1.load_factor() - 1.0) < EPS);
+	REQUIRE(hm1.bucket_count() == 8);
+	REQUIRE(abs(hm1.load_factor() - 0.5) < EPS);
 
 	for (auto iter = il.begin(); iter != il.end(); iter++) {
 		auto iter2 = hm1.find(iter->first);
@@ -210,8 +209,8 @@ TEST_CASE("constructor(iter1, iter2)", "[constructors]") {
 	hash_map<int, std::string> hm1(il.begin(), il.end());
 
 	REQUIRE(hm1.size() == 4);
-	REQUIRE(hm1.bucket_count() == 4);
-	REQUIRE(abs(hm1.load_factor() - 1.0) < EPS);
+	REQUIRE(hm1.bucket_count() == 8);
+	REQUIRE(abs(hm1.load_factor() - 0.5) < EPS);
 
 	for (auto iter = il.begin(); iter != il.end(); iter++) {
 		auto iter2 = hm1.find(iter->first);
@@ -226,8 +225,8 @@ TEST_CASE("constructor(iter1, iter2)", "[constructors]") {
 	hash_map<std::string, int> hm2(sinit.begin(), sinit.end());
 
 	REQUIRE(hm2.size() == 4);
-	REQUIRE(hm2.bucket_count() == 4);
-	REQUIRE(abs(hm2.load_factor() - 1.0) < EPS);
+	REQUIRE(hm2.bucket_count() == 8);
+	REQUIRE(abs(hm2.load_factor() - 0.5) < EPS);
 
 	for (auto iter = il.begin(); iter != il.end(); iter++) {
 		auto iter2 = hm1.find(iter->first);
@@ -266,9 +265,9 @@ TEST_CASE("move assigment", "[assigment]") {
 	REQUIRE(abs(hm1.load_factor()) < EPS);
 
 	REQUIRE(hm2.size() == 2);
-	REQUIRE(hm2.bucket_count() == 2);
+	REQUIRE(hm2.bucket_count() == 4);
 	REQUIRE(abs(hm2.max_load_factor() - 0.45f) < EPS);
-	REQUIRE(abs(hm2.load_factor() - 1.0f) < EPS);
+	REQUIRE(abs(hm2.load_factor() - 0.5f) < EPS);
 
 	for (auto iter = il.begin(); iter != il.end(); iter++) {
 		auto iter2 = hm2.find(iter->first);
@@ -282,8 +281,8 @@ TEST_CASE("assigment = init list", "[assigment]") {
 	hm1 = il;
 
 	REQUIRE(hm1.size() == 4);
-	REQUIRE(hm1.bucket_count() == 4);
-	REQUIRE(abs(hm1.load_factor() - 1.0) < EPS);
+	REQUIRE(hm1.bucket_count() == 8);
+	REQUIRE(abs(hm1.load_factor() - 0.5) < EPS);
 
 	for (auto iter = il.begin(); iter != il.end(); iter++) {
 		auto iter2 = hm1.find(iter->first);
@@ -571,10 +570,6 @@ TEST_CASE("erase range", "[erase]") {
 	auto str2 = next(hm1.begin(), 2);
 	REQUIRE(str2 == hm1.erase(str, str2));
 
-	for (auto iter = ww2.begin(); iter != ww2.end(); iter++) {
-		auto iter2 = hm1.find(iter->first);
-		REQUIRE((iter2 != hm1.end() && *iter == *iter2));
-	}
 	REQUIRE((ww2.size() == hm1.size()));
 
 	fefu::hash_map<int, int> hm3 = { {1, 2}, { 2, 3 } };
@@ -582,7 +577,7 @@ TEST_CASE("erase range", "[erase]") {
 }
 
 TEST_CASE("clear", "[clear]") {
-	initializer_list<pair<const int, hash_map<int, int>>> ww = {
+	initializer_list<pair<const int, pair<int, int>>> ww = {
 		{10, {}},
 		{366, {}},
 		{3, {}},
@@ -590,7 +585,7 @@ TEST_CASE("clear", "[clear]") {
 		{7, {}}
 	};
 
-	hash_map<int, hash_map<int, int>> hm1(ww);
+	hash_map<int, pair<int, int>> hm1(ww);
 	for (auto iter = ww.begin(); iter != ww.end(); iter++) {
 		auto iter2 = hm1.find(iter->first);
 		REQUIRE((iter2 != hm1.end() && *iter == *iter2));
@@ -599,7 +594,7 @@ TEST_CASE("clear", "[clear]") {
 	
 	hm1.clear();
 	REQUIRE(hm1.size() == 0);
-	REQUIRE(hm1.bucket_count() == 5);
+	REQUIRE(hm1.bucket_count() == 10);
 }
 
 TEST_CASE("get hash func", "[getters]") {
@@ -731,6 +726,24 @@ TEST_CASE("get fals ine insert", "[insert]") {
 	CHECK(hm2.at(0) == "abaca");
 	CHECK(!it.second);
 }
+
+TEST_CASE("get false try_emplace", "[try_emplace]") {
+	hash_map<int, string> hm1;
+	auto it = hm1.try_emplace(0, "abaca");
+	it = hm1.try_emplace(0, "cabada");
+	CHECK(hm1.at(0) == "abaca");
+	CHECK(!it.second);
+
+	hash_map<int, string> hm2;
+	const int a1 = 0;
+	it = hm2.try_emplace(a1, "abaca");
+	it = hm2.try_emplace(a1, "cabada");
+	CHECK(hm2.at(0) == "abaca");
+	CHECK(!it.second);
+}
+
+
+
 
 TEST_CASE("empty", "[getters]") {
 	hash_map<int, int> hm1;
