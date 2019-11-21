@@ -3,3 +3,5 @@ HashMap.vcxproj.filters
 HashMap.vcxproj.user
 x64
 /LastCoverageResults.log
+/some_program
+/.opencppcov/HashMap
