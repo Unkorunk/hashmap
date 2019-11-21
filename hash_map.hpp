@@ -220,7 +220,7 @@ namespace fefu {
 				if (data_ != nullptr) {
 					for (size_type i = 0; i < capacity_; i++) {
 						if (used_[i] == 1) {
-							data_[i].second.~mapped_type();
+							data_[i].~value_type();
 						}
 					}
 					allocator_.deallocate(data_, capacity_);
@@ -260,7 +260,11 @@ namespace fefu {
 			}
 
 			hash_map(hash_map&& other)
-				: hash_map(1) {
+				: used_(nullptr), data_(nullptr) {
+				max_load_factor_ = 0.45f;
+				capacity_ = 0;
+				length_ = 0;
+
 				swap(other);
 			}
 
@@ -306,13 +310,12 @@ namespace fefu {
 
 				delete[] other.used_;
 				other.allocator_.deallocate(other.data_, other.capacity_);
-				other.allocator_ = allocator_type();
+				
 				other.max_load_factor_ = 0.45f;
-				other.capacity_ = 1;
-				other.used_ = new char[other.capacity_];
-				other.data_ = allocator_.allocate(other.capacity_);
-				std::fill_n(other.used_, other.capacity_, static_cast<char>(0));
+				other.capacity_ = 0;
 				other.length_ = 0;
+				other.data_ = nullptr;
+				other.used_ = nullptr;
 			}
 
 			hash_map(std::initializer_list<value_type> l, size_type n = 1) 
@@ -332,7 +335,7 @@ namespace fefu {
 				if (data_ != nullptr) {
 					for (size_type i = 0; i < capacity_; i++) {
 						if (used_[i] == 1) {
-							data_[i].second.~mapped_type();
+							data_[i].~value_type();
 						}
 					}
 					allocator_.deallocate(data_, capacity_);
@@ -360,7 +363,7 @@ namespace fefu {
 				if (data_ != nullptr) {
 					for (size_type i = 0; i < capacity_; i++) {
 						if (used_[i] == 1) {
-							data_[i].second.~mapped_type();
+							data_[i].~value_type();
 						}
 					}
 					allocator_.deallocate(data_, capacity_);
@@ -368,11 +371,10 @@ namespace fefu {
 				}
 
 				max_load_factor_ = 0.45f;
-				capacity_ = 1;
+				capacity_ = 0;
 				length_ = 0;
-				data_ = allocator_.allocate(capacity_);
-				used_ = new char[capacity_];
-				std::fill_n(used_, capacity_, static_cast<char>(0));
+				data_ = nullptr;
+				used_ = nullptr;
 
 				swap(other);
 
@@ -383,7 +385,7 @@ namespace fefu {
 				if (data_ != nullptr) {
 					for (size_type i = 0; i < capacity_; i++) {
 						if (used_[i] == 1) {
-							data_[i].second.~mapped_type();
+							data_[i].~value_type();
 						}
 					}
 					allocator_.deallocate(data_, capacity_);
@@ -607,7 +609,7 @@ namespace fefu {
 				}
 
 				*position.node.uptr_ = 2;
-				position.node.dptr_->second.~mapped_type();
+				position.node.dptr_->~value_type();
 				length_--;
 
 				iterator other_position;
@@ -627,7 +629,7 @@ namespace fefu {
 				}
 
 				*position.node.uptr_ = 2;
-				position.node.dptr_->second.~mapped_type();
+				position.node.dptr_->~value_type();
 				position++;
 				length_--;
 				return position;
@@ -662,7 +664,7 @@ namespace fefu {
 			void clear() noexcept {
 				for (size_type i = 0; i < capacity_; i++) {
 					if (used_[i] == 1) {
-						data_[i].second.~mapped_type();
+						data_[i].~value_type();
 					}
 					used_[i] = 0;
 				}
@@ -827,6 +829,8 @@ namespace fefu {
 				max_load_factor_ = z;
 			}
 			void rehash(size_type n) {
+				if (n == 0) n = 1;
+
 				char* n_used = new char[n];
 
 				std::fill_n(n_used, n, static_cast<char>(0));
@@ -841,8 +845,10 @@ namespace fefu {
 					}
 				}
 
-				delete[] used_;
-				allocator_.deallocate(data_, capacity_);
+				if (used_ != nullptr) {
+					delete[] used_;
+					allocator_.deallocate(data_, capacity_);
+				}
 
 				used_ = n_used;
 				data_ = n_data;
