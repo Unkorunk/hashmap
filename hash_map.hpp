@@ -244,7 +244,7 @@ namespace fefu {
 			}
 
 			hash_map(const hash_map& other)
-				: hasher_(), allocator_(), pred_(),
+				: hasher_(other.hasher_), allocator_(other.allocator_), pred_(other.pred_),
 				max_load_factor_(0.45f),
 				used_(new char[other.capacity_]),
 				length_(other.length_),
@@ -260,12 +260,16 @@ namespace fefu {
 			}
 
 			hash_map(hash_map&& other)
-				: used_(nullptr), data_(nullptr) {
+				: hasher_(std::move(other.hasher_)), allocator_(std::move(other.allocator_)), pred_(std::move(other.pred_)), used_(nullptr), data_(nullptr) {
 				max_load_factor_ = 0.45f;
 				capacity_ = 0;
 				length_ = 0;
 
-				swap(other);
+				std::swap(other.data_, data_);
+                                std::swap(other.used_, used_);
+                                std::swap(other.length_, length_);
+                                std::swap(other.capacity_, capacity_);
+                                std::swap(other.max_load_factor_, max_load_factor_);
 			}
 
 			explicit hash_map(const allocator_type& a)
@@ -278,7 +282,7 @@ namespace fefu {
 			}
 
 			hash_map(const hash_map& other, const allocator_type& a)
-				: hasher_(), allocator_(a), pred_(),
+				: hasher_(other.hasher_), allocator_(a), pred_(other.pred_),
 				max_load_factor_(0.45f),
 				used_(new char[other.capacity_]),
 				length_(other.length_),

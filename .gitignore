@@ -5,3 +5,5 @@ x64
 /LastCoverageResults.log
 /some_program
 /.opencppcov/HashMap
+/a.out
+/{
